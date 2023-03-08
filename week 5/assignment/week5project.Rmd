@@ -1,0 +1,142 @@
+---
+title: "Two Way ANOVA"
+author: "Ahmad Alqurashi"
+date: "9/26/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+  As week 4 was about one way ANOVA, we continue with Analysis of variances. This project uses Two Way ANOVA. Similar to one-way ANOVA, two way ANOVA is analysis of the variances, meaning that it is an analysis of the effects of more than one factors on a response. Moreover, factors can have interactions with each other which means that the effect of one factor relies on the level of the other factor. an interaction can be proven when p-value is less than 0.05. This project is using two-way ANOVA to study the effects of professions and regions on salaries. 
+  
+## Dataset
+
+  The dataset we going to use shows the salary, profession, and regoin. Engineer dataset contains 4 variables and 180 observations. It contains yearly salary for three professions in three different cities. the professions are Business Intelligence engineer, data scientist, and software engineer. those jobs are located in San Francisco, Seattle, and New York. There is a variable called V1 which sort observations in numbers, so it will not be in the model. 
+
+
+## Methods and results
+
+  + Loading required libraries 
+
+```{r}
+# Load the libraries
+library(data.table)
+library(ggpubr)
+```
+
+  + Loading data into data table format 
+  
+  
+
+```{r}
+# Load 'engineer.csv' data set
+dt <- fread("C:\\Users\\Ahmad\\Desktop\\MSDS\\MSDS660\\week 5\\assignment\\Engineer.csv")
+str(dt)
+```
+  + Data cleaning:
+  + Since our factors are stored as characters, we need to convert them to factors, so that we can fit them into ANOVA model.
+  + Also, dataset has V1 column, which is incremental number to ID the observations, so we are going to remove it entirely.
+
+```{r}
+# Convert Profession and Region to factors
+dt$Profession = as.factor(dt$Profession)
+dt$Region = as.factor(dt$Region)
+str(dt)
+dt_cln <- dt[,-c(1)]
+```
+
+  + The histogram plot for the response below shows that data is distributed normally. Although, it seems data is slightly skewed. However, it will not effect the result. 
+
+```{r}
+# Plot histogram of Salary
+hist(dt_cln$Salary)
+```
+
+  The figure below shows the difference in salaries based on the job and the city. we can see that Data Scientists are the highest paid jobs while Business intelligence engineers are the lowest. In terms of cities, San Francisco is the most city that has highest paid jobs. Also, it seems that Seattle and San Francisco are colse to each other in terms of salaries while New York falls behind by a lot. in the same sense, Data Scientists and Software Engineers are also close but BI Engineers is much lower.
+
+```{r}
+# Plot Salary vs the 2 other factors 
+plot.design(Salary ~ ., data = dt_cln)
+```
+  Boxplots below confirm that New York and BI Engineers are the lowest, while the other cities and professions are higher and close to each other. In regards to outliers, boxplots do not show any outliers except for New York city. which the salary at 130000. In my opinion, this outlier will not effect the analysis.
+
+```{r}
+
+# Plot Individual Boxplots with means
+
+boxplot(Salary ~ Profession, data = dt_cln, ylab = 'Salary', xlab = 'Profession')
+points(dt_cln[, mean(Salary), by=Profession], col = 'Red')
+boxplot(Salary ~ Region, data = dt_cln, ylab = 'Salary', xlab = 'Region')
+points(dt_cln[, mean(Salary), by=Region], col = 'Blue')
+
+```
+
+  Interaction plot below shows interactions between region and profession factors, it shows strong interaction between San Francisco and Seattle where the jobs are BI Engineers and Data scientists. Moreover, it shows weak interaction for New York city. it Also shows that San Francisco and Seattle are close and New York.  
+  
+```{r}
+# Create interaction plot looking at Region and Profession
+
+interaction.plot(x.factor = dt$Profession,
+                 trace.factor = dt$Region, 
+                 response = dt$Salary,
+                 fun = mean, 
+                 type = "b",  # shows each point
+                 main = "Interaction Plot",
+                 legend = TRUE,
+                 trace.label = "Profession",
+                 xlab = "Profession",
+                 ylab="Salary",
+                 pch=c(1, 2, 3, 4),
+                 col = c("Red", "Blue", "Green","Black"))
+
+
+
+```
+
+   Below is two way ANOVA model where we fit both of our factors in the model. The model Shows that profession, region are significant, Also, the interaction profession and region is Also significant. Furthermore, the degree of freedom for profession and region interaction is more less than number of observations, so no need to modify the model. 
+```{r}
+
+fit <- aov(Salary ~ Profession * Region, data = dt)
+summary(fit)
+
+```
+
+  TukeyHSD post hoc test below shows that Profession and region interaction is significant because of the adjusted p-value is less than 0.05 for most of the professions and regions. for example, Software Engineer in Seattle and BI Engineer in New York have adjusted p-value of 0.0000975 which is less than 0.05. 
+
+```{r}
+# Perform TukeyHSD to check if which interactions have a significant difference
+TukeyHSD(fit)
+```
+  Below plots show distribution of the residuals, residuals vs fitted plot looks normal. scale location plot does not look good but we an accept it. Normal Q-Q shows that residuals are normally distributed. Although, it shows that there are outliers for observations number 55 and 28. lastly, leverage plot looks normal.
+  
+```{r}
+
+par(mfrow = c(2,2))
+plot(fit)
+```
+ 
+ Shapiro test of residuals and the histogram of residuals show that residuals are normally distributed. 
+
+```{r}
+# Perform Shapiro test to see if residuals are normally distributed.
+
+shapiro.test(residuals(fit))
+hist(residuals(fit), breaks=40)
+```
+
+## Conclusion 
+
+  Lastly, Null hypothesis is that there is no difference in means with any factors, which is rejected because both factors are significantly different in means, along side with the interaction of the factors. Alternative hypothesis is accepted because we have at least one factors that is significantly different. generally, as this test proved it, salaries are effected by location and profession, Also different location and different professions are strong factors on salaries.  
+  
+## References 
+
+  Two way ANOVA. (n.d.). Retrieved from From the Expert.
+  
+  Two Way ANOVA - MSDS660. (2021). Denver, CO, USA.
+
+
+

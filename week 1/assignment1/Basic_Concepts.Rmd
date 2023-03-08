@@ -1,0 +1,90 @@
+---
+title: "660_Assignment_1 Basic Concepts"
+author: "Amelia O'Leary"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(fig.width = 7, fig.height = 4, fig.align = 'center')
+```
+
+## Introduction 
+
+R is an open source language that is specifically geared towards statistical computing and graphics (What is R?, (n.d.)). Being open source is valuable because the use of the program is free and people are constantly creating updates and packages to increase the effectiveness and ease of common R uses. For example, the package ggplot2 is an expansive plotting package that allows users to manipulate and customize virtually every aspect of a visual. 
+
+RStudio is a common and popular GUI that runs on top of base R which helps organize and orient the user. R can be used very basically, such as a calculator, to descriptive statistics, inferential statistics, up to advanced machine learning models. More information about R and the R enviornment can be found at <https://www.r-project.org/about.html>. 
+
+## Methods and Results
+For this assignment I will be using the iris data set, which is pre-loaded in R. Iris is a famous data set, created by Edgar Anderson in 1935, that reports the measurements (in centimeters) on sepal length, sepal width, petal length, and petal width for 50 floweres from each of 3 species: *setosa*, *versicolor*, and *virginca* (Edgar Anderson's Iris Data, (n.d.)). 
+
+```{r functions}
+
+# The function library loads and attaches add-on packages. This will load in the graphics package "ggplot2". In order to have the ability to load in a package, the package must be installed. To do this, the function install.packages("packagename") can be used. 
+
+library(ggplot2)
+
+# data() will load in a specific data set. I used this to save the iris dataset into the R environment. 
+data(iris)
+
+# colnames() will output the column names of the called dataset. 
+colnames(iris)
+
+# head() will output the first five rows and all columns of the called dataset. 
+head(iris)
+
+# sd() will output the standard deviation of a specified column within a dataset. 
+sd(iris$Sepal.Length)
+
+# similar to sd(), median() will output the median of a specifid column within a dataset. 
+median(iris$Sepal.Width)
+
+# sapply() is simillar to lapply, which outputs a list of the same length of x which is a result of a function corresponding to x. In this example, the mean will output for the iris dataset columns 1 through 4. 
+sapply(iris[, c(1:4)], mean)
+
+# class() outputs the type of data contained within a specified column or data-objects. The most common catagorizations for are numeric, integer, character, and factor. Examples of output when calling a whole dataset are data.frame, matrix, list, etc. 
+class(iris$Species)
+
+# levels() outputs the levels contained within a factor variable.
+levels(iris$Species)
+
+# summary() outputs the 5 number summary pertaining to a dataset or specific variable called. 
+summary(iris)
+
+# View() calls to open a spreadsheet like data viewer. 
+View(iris)
+
+# str() outputs the data structure of a dataset. This includes class of whole dataset, total observations, number of variables, column damnes, class of variable, and a handful of induvidual observations for each variable. 
+str(iris)
+
+# hist() outputs a histogram plot of a specified variable within a dataset. 
+hist(iris$Sepal.Length)
+
+# boxplot() outputes a boxplot with one variable by another varialbe. This example displays sepal width by species type.
+boxplot(iris$Sepal.Width ~ iris$Species)
+
+# ggplot() creates a plot that is specified in parameters determined in later code. geom_bar() specifies the type of graph as a barchart where the aesthetics are set. theme_classic() is a part of ggplot that specifies the general look of the style and background of the graph.
+ggplot(iris) +
+  geom_bar(stat = "identity", aes(x = Species, y = Petal.Width, fill = Petal.Length)) +
+  theme_classic()
+
+# setwd() sets the working directory of the console. This is useful when calling dataset into the R environment or saving files from R into a specific local location. 
+setwd("~/")
+
+# ggsave() saves the last printed ggplot() as a specific image file onto a local location.
+ggsave("iris.plot.png")
+```
+
+## Conclusion
+
+This exercise's purpose was to ensure that R and RStudio installed and configured properly as well as to familiarize simple, but useful, r functions. These functions are important to exploring and understanding the dataset before preforming inferential statistic or other advanced analytic functions. 
+
+R is a program I have been using since my junior year or college, when I started taking upper level statistic courses. I started using R more consistently and realistically when I entered the workforce. I would consider myself very procfient in R, so this acitivity was very simple. One function that I have never use before, but seems very useful, is the str() function. I would use multiple function to obtain the same information induvidually, such as head(), class(), nrow(), levels(), etc. So even though this exercie was very simple, I did learn something new. 
+
+## References 
+
+Edgar Anderson's Iris Data. (n.d.). Retrieved from https://stat.ethz.ch/R-manual/R-devel/RHOME/library/datasets/html/iris.html
+
+What is R? (n.d.). Retrieved from https://www.r-project.org/about.html

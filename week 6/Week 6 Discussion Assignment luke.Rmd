@@ -1,0 +1,177 @@
+---
+title: "Week 6 Discussion Assignment"
+author: "Lucas Hennessey"
+date: "10/3/2021"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## To get ready to investigate breast cancer data we need to load our libraries and import the data
+
+```{r loading libraries and data}
+
+# opening our libraries, maybe more than I need
+
+library(data.table)
+library(dplyr)
+library(car)
+library(caret)
+library(caTools)
+library(pROC)
+library(MASS)
+library(tidyverse)
+
+# Importing our dataset and converting to a data frame.  Used notepad to add column names before importing 
+
+breast.cancer.wisconsin <- read.csv("~/Python_class/Week 6 Logistic Regression Stuff/breast-cancer-wisconsin.data")
+
+dt <- as.data.table(breast.cancer.wisconsin)
+
+# setting the seed for later analysis
+
+set.seed(1)
+
+```
+
+## I'm going to take a quick look at our data, then clean and prepare it for our regresssion
+
+```{r EDA}
+
+# removing id
+
+dt <- dt[, c("id") := NULL]
+
+#checking structure of df
+
+str(dt)
+
+# checking summary statistics
+
+summary(dt)
+
+# converting data types to allow for logistic regression
+
+dt$bare_nucleoli <- as.integer(dt$bare_nucleoli)
+
+dt$diagnosis <- factor(dt$diagnosis, labels =c('benign', 'malignant'))
+
+str(dt)
+
+# removing NAs
+
+dt <- dt[complete.cases(dt)]
+
+# finally split our data into a training and a test set
+
+samp <- sample.split(dt$diagnosis, SplitRatio = 0.8)
+train <- subset(dt, samp == TRUE)
+test <- subset(dt, samp == FALSE)
+
+```
+
+## Now to model our cleaned, prepped data on our training set and take a look
+
+
+```{r modeling}
+
+# creating the model
+
+model <- glm(diagnosis ~ ., data = train, family = "binomial")
+
+# looking at the results
+
+summary(model)
+
+# checking for collinearity (assumption checking)
+
+vif(model)
+
+# performing step AIC to remove high p values
+
+stepAIC(model, dirrection = 'both')
+
+# se cell shape, cell shape and cell size don't appear to be helpful in our regression, so I'll remove them and model again
+
+model <- glm(formula = diagnosis ~ clump_thickness + marginal_adhesion + bare_nucleoli + bland_chromatin + normal_nucleoli + mitoses, family = "binomial", data = train)
+
+summary(model)
+
+# predicting on our training data using our simplified model
+
+trainpreds <- predict(model, type = 'response', train)
+
+# setting prediction values.  Assuming that '2' means negative and '4' means positive
+
+trainp <- factor(trainpreds >= 0.5, labels = c('benign', 'malignant'))
+
+# Building a confusion matrix to evaluate our model
+
+trainCM <- confusionMatrix(train$diagnosis, trainp)
+trainCM
+
+```
+## So far our simplified model looks fantastic.  Let's test it against our test data set
+
+```{r predictions}
+
+# predict on the test data            
+testpreds <- predict(model, type = 'response', test)
+
+# set cutoff labels for predictions
+testp <- factor(testpreds >= 0.5, labels = c('benign', 'malignant'))
+
+# Build a confusion matrix to see results
+testCM <- confusionMatrix(test$diagnosis, testp)
+testCM
+
+```
+
+## Our model looks really good against the test data too, so we'll create ROC curves for our model on the training set and our model on the test set and we'll look at confusion matrices for all of our models to evaluate the performance of each
+
+```{r roc curves}
+
+# ROC curve for the Train data
+train_roc_curve <- roc(train$diagnosis, trainpreds)
+train_roc_curve
+plot(train_roc_curve)
+train_rocc <- coords(roc=train_roc_curve, x = 'best', best.method = 'closest.topleft')
+train_rocc
+
+# ROC curve for the Test data
+test_roc_curve <- roc(test$diagnosis, testpreds)
+test_roc_curve
+plot(test_roc_curve)
+test_rocc <- coords(roc=test_roc_curve, x = 'best', best.method = 'closest.topleft')
+test_rocc
+
+# predict on training data using ROC cut-off
+trainrocp <- factor(trainpreds >= as.numeric(train_rocc[1]), labels = c('benign', 'malignant'))
+
+# confusion matrix
+trainROCCM <- confusionMatrix(train$diagnosis, trainrocp)
+trainROCCM
+
+# Predict on the test data            
+testp <- factor(testpreds >= as.numeric(test_rocc[1]), labels = c('benign', 'malignant'))
+
+# confusion matrix
+testROCCM <- confusionMatrix(test$diagnosis, testp)
+testROCCM
+
+#View all the Confusion matrices
+trainCM
+trainROCCM
+
+testCM
+testROCCM
+
+
+```
+
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

@@ -1,0 +1,251 @@
+---
+title: "Logistic Regression"
+author: "Ahmad Alqurashi"
+date: "10/8/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+  For week 6, We are going to use logistic regression model. Logistic regression is a predictive analysis that used to describe the effects of independent variables on binary dependent variable. For example, logistic regression can give a probability of getting diagnosed with caner (yes or no). For this assignment, we are going to predict whether a customer churn or not. Churn means that the customer does not continue business with the service provider.
+
+## Dataset
+
+  Churn dataset is a list of customers that contains information such as monthly payment, gender, contract type, etc. Most of the variables are binary and categorical, and only 3 variables are continuous. This dataset will used to predict whether customer opt out of the service or not. Chrun variable, the dependent variable, has two values, yes and No, meaning that no is the customer is continuing the service and yes is that the customer opt out of the service.
+
+
+## Data Cleaning
+
+  Churn dataset has 21 columns. Many of them are useless for this analysis or have aliased coefficients with other variables. Customer Id and total charge are not useful for this analysis because ID is meaningless and would mess up the result, total charge on the other hand, is useless because we have monthly charge and tenure variables which total charge can be calculated with these two variables. Also, Multiple Lines, Online Security, Online Backup, Device Protection, Tech Support, Streaming TV, and Streaming Movies variables has aliased coefficients with phone service variable, and they need to be removed in order to test the model with VIF function. lastly, all of the factor variables are stored as character, so we need to convert them into factors in order to fit them in the model. 
+
+## Methods and results
+
+  + Importing required libraries
+
+```{r Imprting libraries}
+# Importing required libraries
+library(data.table)
+library(dplyr)
+library(car)
+library(caret)
+library(caTools)
+library(pROC)
+library(MASS)
+```
+
+  + setting seed with a constant value in order to get same prediction every time we run the code 
+```{r setting seed}
+set.seed(1)
+```
+
+  + Loading dataset into R environment, convert it to data table, and remove messing values. 
+```{r Loading dataset}
+
+
+dt <- read.csv('C:\\Users\\Ahmad\\Desktop\\MSDS\\MSDS660\\week 6\\assignment\\churn.csv', header = TRUE)
+dt <- as.data.table(dt)
+str(dt)
+summary(dt)
+dt <- dt[complete.cases(dt),]
+summary(dt)
+
+```
+
+  + Data cleaning: removing unwanted variables, and convert characters to factor
+```{r Data Cleaning}
+
+
+
+dtcln <- dt[, c("customerID", "TotalCharges", "MultipleLines", "OnlineSecurity","OnlineBackup", "DeviceProtection", "TechSupport", "StreamingTV", "StreamingMovies") := NULL]
+dtcln$gender <- as.factor(dtcln$gender)
+dtcln$SeniorCitizen <- as.factor(dtcln$SeniorCitizen)
+dtcln$Partner <- as.factor(dtcln$Partner)
+dtcln$Dependents <- as.factor(dtcln$Dependents)
+dtcln$PhoneService <- as.factor(dtcln$PhoneService)
+dtcln$InternetService <- as.factor(dtcln$InternetService)
+dtcln$Contract <- as.factor(dtcln$Contract)
+dtcln$PaperlessBilling <- as.factor(dtcln$PaperlessBilling)
+dtcln$PaymentMethod <- as.factor(dtcln$PaymentMethod)
+dtcln$Churn <- as.factor(dtcln$Churn)
+
+
+```
+
+  + Splitting data into two subsets: training and testing subsets, because we need to estimate the model performance, and prevent overfitting the model.
+  
+```{r splitting data into two subsets}
+# Split the data into a train and test set
+samp <- sample.split(dt$Churn, SplitRatio = 0.8)
+train <- subset(dtcln, samp == TRUE)
+test <- subset(dtcln, samp == FALSE)
+```
+
+
+  + Create a model with train data. 
+```{r Modeling}
+# Create a multilinear binomial logistic regression on survived vs sex
+fit <- glm(Churn ~ ., data = train, family = "binomial")
+summary(fit)
+vif(fit)
+```
+
+  It seems we have 8 variable that are significant. VIF score shows that Internet service and monthly charge have collinearity, both scores are 8.
+  
+  + performing StepAIC with both directions to find the best model.
+```{r StepAIC}
+
+stepAIC(fit, dirrection = 'both')
+
+```
+
+
+  StepAIC shows that the best model contains these variables:
+    +SeniorCitizen
+    +Dependents
+    +tenure
+    +PhoneService
+    +InternetService
+    +Contract
+    +PaperlessBilling
+    +PaymentMethod
+    +MonthlyCharges
+    
+  + create a model with those variables.
+    
+```{r best model according to stepAIC}
+
+#  AIC=4757.64
+
+fit1 <- glm(Churn ~ SeniorCitizen + Dependents + tenure + PhoneService + 
+               InternetService + Contract + PaperlessBilling + PaymentMethod + 
+               MonthlyCharges, data = train, family = "binomial")
+
+summary(fit1)
+vif(fit1)
+ 
+```
+
+
+  + Below shows the results of prediction for train data.
+
+```{r Prediction on train data}
+
+
+# Predict on the train data            
+trainpreds <- predict(fit1, type = 'response', train)
+# Round prediction values at 0.5 cutoff factor and change labels
+trainp <- factor(trainpreds >= 0.5, labels = c('No', 'Yes'))
+# Build a confusion matrix to see results
+trainCM <- confusionMatrix(train$Churn, trainp)
+trainCM
+
+
+```
+  
+  Confusion matrix shows a prediction of 3701 false positive, meaning that 3701 customers who will not churn and actually did not churn and 429 false negative meaning that 429 customers who will not churn but actually churn. the prediction accuracy is 80%, sensitivity 84% meaning that 84% is above the curve. 
+  
+  + below is the prediction on testing data
+  
+```{r prediction on test data}
+
+# predict on the test data            
+testpreds <- predict(fit1, type = 'response', test)
+
+# Round prediction values at 0.5 cutoff factor and change labels
+testp <- factor(testpreds >= 0.5, labels = c('No', 'Yes'))
+
+# Build a confusion matrix to see results
+testCM <- confusionMatrix(test$Churn, testp)
+testCM
+
+
+
+```
+
+  prediction accuracy is 81%, sensitivity is 85%, which is better than the prediction on the training data.
+  
+  
+  + below shows ROC curve for train data
+  
+```{r ROC curve on train data}
+train_roc_curve <- roc(train$Churn, trainpreds)
+train_roc_curve
+plot(train_roc_curve)
+train_rocc <- coords(roc=train_roc_curve, x = 'best', best.method = 'closest.topleft')
+train_rocc
+
+
+```
+
+  + below shows ROC curve for test data
+```{r ROC curve on test data}
+test_roc_curve <- roc(test$Churn, testpreds)
+test_roc_curve
+plot(test_roc_curve)
+test_rocc <- coords(roc=test_roc_curve, x = 'best', best.method = 'closest.topleft')
+test_rocc
+
+```
+
+  Both curves looks similar in terms of sensitivity and specificity.
+  
+  + below shows prediction on train data using ROC cut-off
+  
+```{r ROC cut-off train data}
+
+# Predict on the train data using the ROC cut-off            
+# Round prediction values at 0.5 cutoff factor and change labels
+trainrocp <- factor(trainpreds >= as.numeric(train_rocc[1]), labels = c('No', 'Yes'))
+
+# Build a confusion matrix to see results
+trainROCCM <- confusionMatrix(train$Churn, trainrocp)
+trainROCCM
+
+```
+
+  Accuracy went down from 80% to 75%, while sensitivity rose to 89%. 
+  
+  
+  + below shows prediction on test data using ROC cut-off 
+  
+```{r ROC cut-off test data}
+
+
+# Predict on the test data            
+# Round prediction values at 0.5 cutoff factor and change labels
+testp <- factor(testpreds >= as.numeric(test_rocc[1]), labels = c('No', 'Yes'))
+
+# Build a confusion matrix to see results
+testROCCM <- confusionMatrix(test$Churn, testp)
+testROCCM
+
+
+```
+
+  It shows accuracy at 77%, sensitivity at 90%, and specificity at 56%. 
+  
+  + below shows confusion matrix of all predictions. 
+```{r confusion matrix}
+
+trainCM
+trainROCCM
+
+testCM
+testROCCM
+
+
+```
+
+
+
+
+## Conclusion
+
+
+  In conclusion, all variables that are used in the model were good predictors of the dependent variable. 
+  
+  
